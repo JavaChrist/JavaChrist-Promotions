@@ -31,14 +31,19 @@ export function useAdminAuth(): AuthState {
   return state;
 }
 
-export function useCollection<T>(name: string): Identified<T>[] | null {
+/** Écoute une collection. `enabled` doit être faux tant que le claim `admin` n'est pas confirmé : les règles refusent sinon la lecture et Firestore journalise permission-denied. */
+export function useCollection<T>(name: string, enabled: boolean): Identified<T>[] | null {
   const [items, setItems] = useState<Identified<T>[] | null>(null);
 
   useEffect(() => {
+    if (!enabled) {
+      setItems(null);
+      return;
+    }
     return onSnapshot(collection(db, name), (snap) => {
       setItems(snap.docs.map((item) => ({ id: item.id, data: item.data() as T })));
     });
-  }, [name]);
+  }, [name, enabled]);
 
   return items;
 }
@@ -52,8 +57,15 @@ export interface PublishReport {
 export async function publishCatalogs(user: User): Promise<PublishReport> {
   const response = await fetch("/api/publish", {
     method: "POST",
+    // Les cookies de localhost (Motissimo et les autres apps) partent avec
+    // chaque requête same-origin. Avec le jeton Firebase, les en-têtes
+    // dépassent la limite de Node et le serveur répond 431 avant la route.
+    credentials: "omit",
     headers: { Authorization: `Bearer ${await user.getIdToken()}` },
   });
-  if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? "Publication impossible");
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error ?? `Publication impossible (HTTP ${response.status})`);
+  }
   return response.json();
 }

@@ -20,8 +20,9 @@ function Centered({ children }: { children: React.ReactNode }) {
 
 export function AdminShell() {
   const session = useAdminAuth();
-  const apps = useCollection<AppDoc>("apps");
-  const campaigns = useCollection<CampaignDoc>("campaigns");
+  const ready = session.status === "admin";
+  const apps = useCollection<AppDoc>("apps", ready);
+  const campaigns = useCollection<CampaignDoc>("campaigns", ready);
   const [tab, setTab] = useState<Tab>("campaigns");
   const [view, setView] = useState<View>({ kind: "list" });
   const [report, setReport] = useState<PublishReport | null>(null);
