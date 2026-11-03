@@ -19,6 +19,9 @@
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
+  "overrides": {
+    "jose": "^5.10.0"
+  },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
