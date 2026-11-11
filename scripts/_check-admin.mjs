@@ -7,10 +7,6 @@ createRequire(import.meta.url)("@next/env").loadEnvConfig(process.cwd());
 
 const raw = process.env.FIREBASE_PRIVATE_KEY ?? "";
 const key = raw.replace(/\\n/g, "\n");
-const body = key
-  .replace("-----BEGIN PRIVATE KEY-----", "")
-  .replace("-----END PRIVATE KEY-----", "")
-  .replace(/\s/g, "");
 
 if (!getApps().length) {
   initializeApp({

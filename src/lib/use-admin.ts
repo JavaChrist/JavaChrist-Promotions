@@ -36,16 +36,14 @@ export function useCollection<T>(name: string, enabled: boolean): Identified<T>[
   const [items, setItems] = useState<Identified<T>[] | null>(null);
 
   useEffect(() => {
-    if (!enabled) {
-      setItems(null);
-      return;
-    }
+    if (!enabled) return;
     return onSnapshot(collection(db, name), (snap) => {
       setItems(snap.docs.map((item) => ({ id: item.id, data: item.data() as T })));
     });
   }, [name, enabled]);
 
-  return items;
+  // Valeur dérivée : pas de setState synchrone dans l'effet quand `enabled` repasse à faux.
+  return enabled ? items : null;
 }
 
 export interface PublishReport {
