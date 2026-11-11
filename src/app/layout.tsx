@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "JavaChrist Promotions",
   description: "Gestionnaire de promotions des applications JavaChrist",
+  icons: {
+    apple: [{ url: "/icon-180.png?v=2", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
