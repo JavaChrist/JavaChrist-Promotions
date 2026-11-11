@@ -20,7 +20,9 @@
     "react-dom": "19.3.0"
   },
   "overrides": {
-    "jose": "^5.10.0"
+    "jose": "^5.10.0",
+    "node-domexception": "npm:@nolyfill/domexception@^1",
+    "rimraf": "^6"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
