@@ -87,7 +87,7 @@ export function CampaignsPanel({ campaigns, apps, onNew, onEdit, onChanged }: Ca
               className={`grid min-h-14 items-center gap-2 border-b border-[#262626] px-4 py-3 text-sm last:border-b-0 hover:bg-[#0a0a0a] md:gap-4 ${GRID}`}
             >
               <span className="min-w-0">
-                <span className="block truncate">{c.title}</span>
+                <span className="block truncate font-medium text-accent-pink">{c.title}</span>
                 <span className="block truncate text-[13px] text-[#a1a1a1]">
                   {appName(c.promotedAppId)} dans {c.sourceAppIds.map(appName).join(", ")}
                 </span>

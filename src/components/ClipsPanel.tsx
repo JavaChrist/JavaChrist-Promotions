@@ -144,7 +144,7 @@ export function ClipsPanel({ clips, apps, campaigns }: ClipsPanelProps) {
                   />
                 ) : (
                   <>
-                    <span className="block truncate">{c.name}</span>
+                    <span className="block truncate font-medium text-accent-violet">{c.name}</span>
                     <span className="block truncate text-[13px] text-[#a1a1a1]">{appName(c.appId)}</span>
                   </>
                 )}

@@ -74,7 +74,7 @@ export function AppsPanel({ apps, onChanged }: AppsPanelProps) {
             className="grid min-h-14 items-center gap-2 border-b border-[#262626] px-4 py-3 text-sm last:border-b-0 hover:bg-[#0a0a0a] md:grid-cols-[1fr_1.2fr_140px_250px] md:gap-4"
           >
             <span className="truncate">
-              {item.data.name} <code className="ml-2 text-[13px] text-[#a1a1a1]">{item.id}</code>
+              <span className="font-medium text-accent-blue">{item.data.name}</span> <code className="ml-2 text-[13px] text-[#a1a1a1]">{item.id}</code>
             </span>
             <code className="truncate text-[13px] text-[#a1a1a1]">{item.data.androidPackage || "—"}</code>
             <span className="text-[#a1a1a1]">{item.data.enabledAsSource ? "Oui" : "Non"}</span>
