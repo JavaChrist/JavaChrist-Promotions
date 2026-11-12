@@ -4,7 +4,7 @@ import { useState } from "react";
 import { deleteDoc, doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase-client";
 import { isPlayStoreUrl, type AppDoc, type Identified } from "@/lib/types";
-import { ConfirmDialog, Field, btnPrimary, btnSecondary, inputClass } from "./ui";
+import { ConfirmDialog, Field, btnDanger, btnPrimary, btnSecondary, inputClass } from "./ui";
 
 interface AppsPanelProps {
   apps: Identified<AppDoc>[];
@@ -82,7 +82,7 @@ export function AppsPanel({ apps, onChanged }: AppsPanelProps) {
               <button type="button" className={btnSecondary} onClick={() => toggleSource(item)}>
                 {item.data.enabledAsSource ? "Arrêter la diffusion" : "Activer la diffusion"}
               </button>
-              <button type="button" className={btnSecondary} onClick={() => setToDelete(item)}>
+              <button type="button" className={btnDanger} onClick={() => setToDelete(item)}>
                 Supprimer
               </button>
             </span>
@@ -91,7 +91,7 @@ export function AppsPanel({ apps, onChanged }: AppsPanelProps) {
       </div>
 
       <form onSubmit={add} className="max-w-xl space-y-4">
-        <h2 className="text-base font-medium">Ajouter une application</h2>
+        <h2 className="section-title text-base font-medium">Ajouter une application</h2>
         <Field label="Identifiant" hint="Définitif. Pour un jeu diffuseur, il doit correspondre à celui codé dans le jeu (Motissimo : motissimo).">
           <input className={inputClass} value={id} onChange={(e) => setId(e.target.value)} placeholder="motissimo" />
         </Field>

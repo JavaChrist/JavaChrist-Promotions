@@ -3,11 +3,14 @@ import type { CampaignStatus } from "@/lib/types";
 import { STATUS_LABELS } from "@/lib/types";
 
 export const btnPrimary =
-  "rounded-lg bg-[#ededed] px-4 py-2 text-sm font-medium text-black hover:bg-white disabled:opacity-50";
+  "btn-glow rounded-lg bg-[#ededed] px-4 py-2 text-sm font-medium text-black hover:bg-white disabled:opacity-50";
 export const btnSecondary =
-  "rounded-lg border border-[#333] bg-black px-3 py-1.5 text-sm font-medium text-[#ededed] hover:bg-[#111] disabled:opacity-50";
+  "rounded-lg border border-[#333] bg-black px-3 py-1.5 text-sm font-medium text-[#ededed] hover:border-accent-blue hover:bg-accent-blue/10 hover:text-white disabled:opacity-50 disabled:hover:border-[#333] disabled:hover:bg-black";
+/** Action destructive : bordure et texte rouges au survol. */
+export const btnDanger =
+  "rounded-lg border border-[#333] bg-black px-3 py-1.5 text-sm font-medium text-[#ededed] hover:border-danger hover:bg-danger/10 hover:text-danger disabled:opacity-50 disabled:hover:border-[#333] disabled:hover:bg-black";
 export const inputClass =
-  "h-10 w-full rounded-lg border border-[#262626] bg-black px-3 text-sm text-[#ededed] placeholder:text-[#666] outline-none hover:border-[#333] focus:border-[#666]";
+  "h-10 w-full rounded-lg border border-[#262626] bg-black px-3 text-sm text-[#ededed] placeholder:text-[#666] outline-none hover:border-[#333] focus:border-accent-blue";
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -36,7 +39,7 @@ export function ConfirmDialog({ title, message, confirmLabel, busy, onConfirm, o
       onKeyDown={(event) => event.key === "Escape" && onCancel()}
     >
       <div role="dialog" aria-modal="true" aria-labelledby="confirm-title" className="w-full max-w-sm space-y-4 rounded-lg border border-[#262626] bg-black p-5">
-        <h2 id="confirm-title" className="text-base font-medium">
+        <h2 id="confirm-title" className="section-title text-base font-medium">
           {title}
         </h2>
         <p className="text-sm text-[#a1a1a1]">{message}</p>

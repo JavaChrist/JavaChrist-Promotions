@@ -6,7 +6,7 @@ import { deleteObject, ref } from "firebase/storage";
 import { db, mediaUrl, storage } from "@/lib/firebase-client";
 import { isLibraryPath, type AppDoc, type CampaignDoc, type CampaignStatus, type Identified } from "@/lib/types";
 import { PhonePreview } from "./PhonePreview";
-import { ConfirmDialog, StatusPill, btnPrimary, btnSecondary } from "./ui";
+import { ConfirmDialog, StatusPill, btnDanger, btnPrimary, btnSecondary } from "./ui";
 
 interface CampaignsPanelProps {
   campaigns: Identified<CampaignDoc>[];
@@ -116,7 +116,7 @@ export function CampaignsPanel({ campaigns, apps, onNew, onEdit, onChanged }: Ca
                     Archiver
                   </button>
                 )}
-                <button type="button" className={btnSecondary} disabled={busy} onClick={() => setToDelete(item)}>
+                <button type="button" className={btnDanger} disabled={busy} onClick={() => setToDelete(item)}>
                   Supprimer
                 </button>
               </span>

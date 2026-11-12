@@ -37,7 +37,7 @@ export function AdminShell() {
   if (session.status === "signed-out") {
     return (
       <Centered>
-        <h1 className="text-xl font-semibold">JavaChrist Promotions</h1>
+        <h1 className="title-gradient text-2xl font-semibold">JavaChrist Promotions</h1>
         <p className="text-sm text-[#a1a1a1]">Accès réservé à l&apos;administrateur.</p>
         <button type="button" className={btnPrimary} onClick={() => signInWithPopup(auth, new GoogleAuthProvider())}>
           Se connecter avec Google
@@ -69,17 +69,18 @@ export function AdminShell() {
     }
   }
 
-  const tabs: { id: Tab; label: string; icon: typeof Megaphone }[] = [
-    { id: "campaigns", label: "Campagnes", icon: Megaphone },
-    { id: "clips", label: "Clips", icon: Film },
-    { id: "apps", label: "Applications", icon: LayoutGrid },
+  // Classes écrites en entier pour que Tailwind les détecte.
+  const tabs: { id: Tab; label: string; icon: typeof Megaphone; iconColor: string; active: string }[] = [
+    { id: "campaigns", label: "Campagnes", icon: Megaphone, iconColor: "text-accent-pink", active: "border-accent-pink bg-accent-pink/10" },
+    { id: "clips", label: "Clips", icon: Film, iconColor: "text-accent-violet", active: "border-accent-violet bg-accent-violet/10" },
+    { id: "apps", label: "Applications", icon: LayoutGrid, iconColor: "text-accent-blue", active: "border-accent-blue bg-accent-blue/10" },
   ];
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[240px_1fr]">
       <aside className="flex items-center gap-2 border-b border-[#262626] p-3 md:flex-col md:items-stretch md:border-b-0 md:border-r md:p-4">
-        <p className="hidden px-2 pb-3 text-sm font-semibold md:block">JavaChrist Promotions</p>
-        {tabs.map(({ id, label, icon: Icon }) => (
+        <p className="title-gradient hidden px-2 pb-3 text-sm font-semibold md:block">JavaChrist Promotions</p>
+        {tabs.map(({ id, label, icon: Icon, iconColor, active }) => (
           <button
             key={id}
             type="button"
@@ -87,9 +88,9 @@ export function AdminShell() {
               setTab(id);
               setView({ kind: "list" });
             }}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-[#111] ${tab === id ? "bg-[#111] text-white" : "text-[#a1a1a1]"}`}
+            className={`flex items-center gap-2 rounded-lg border-b-2 px-3 py-2 text-sm md:border-b-0 md:border-l-2 ${tab === id ? `${active} text-white` : "border-transparent text-[#a1a1a1] hover:bg-[#111] hover:text-white"}`}
           >
-            <Icon className="size-4" />
+            <Icon className={`size-4 ${iconColor}`} />
             {label}
           </button>
         ))}
@@ -104,7 +105,7 @@ export function AdminShell() {
 
       <main className="space-y-6 p-4 md:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold">{TITLES[tab]}</h1>
+          <h1 className="title-gradient text-2xl font-semibold">{TITLES[tab]}</h1>
           <button type="button" className={btnSecondary} onClick={publish}>
             Republier les catalogues
           </button>

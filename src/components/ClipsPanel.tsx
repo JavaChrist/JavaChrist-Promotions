@@ -7,7 +7,7 @@ import { db, mediaUrl, storage } from "@/lib/firebase-client";
 import { LIBRARY_PREFIX, type AppDoc, type CampaignDoc, type ClipDoc, type Identified } from "@/lib/types";
 import { checkVideoFile, formatSize, uploadVideo } from "@/lib/video";
 import { PhonePreview } from "./PhonePreview";
-import { ConfirmDialog, Field, btnPrimary, btnSecondary, inputClass } from "./ui";
+import { ConfirmDialog, Field, btnDanger, btnPrimary, btnSecondary, inputClass } from "./ui";
 
 interface ClipsPanelProps {
   clips: Identified<ClipDoc>[];
@@ -170,7 +170,7 @@ export function ClipsPanel({ clips, apps, campaigns }: ClipsPanelProps) {
                     <button type="button" className={btnSecondary} onClick={() => setRenaming({ id: item.id, name: c.name })}>
                       Renommer
                     </button>
-                    <button type="button" className={btnSecondary} onClick={() => askDelete(item)}>
+                    <button type="button" className={btnDanger} onClick={() => askDelete(item)}>
                       Supprimer
                     </button>
                   </>
@@ -182,7 +182,7 @@ export function ClipsPanel({ clips, apps, campaigns }: ClipsPanelProps) {
       </div>
 
       <form onSubmit={add} className="max-w-xl space-y-4">
-        <h2 className="text-base font-medium">Déposer un clip</h2>
+        <h2 className="section-title text-base font-medium">Déposer un clip</h2>
         <Field label="Vidéo MP4" hint={durationMs && file ? `Durée mesurée : ${(durationMs / 1000).toFixed(1)} s, ${formatSize(file.size)}` : "15 s maximum (10–12 s conseillé), 10 Mo maximum, H.264/AAC."}>
           <input
             key={inputKey}

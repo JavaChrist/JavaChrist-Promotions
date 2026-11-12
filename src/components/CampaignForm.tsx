@@ -98,7 +98,7 @@ export function CampaignForm({ apps, clips, initial, onSaved, onCancel }: Campai
 
   return (
     <form onSubmit={submit} className="max-w-xl space-y-4">
-      <h2 className="text-base font-medium">{initial ? "Modifier la campagne" : "Nouvelle campagne"}</h2>
+      <h2 className="section-title text-base font-medium">{initial ? "Modifier la campagne" : "Nouvelle campagne"}</h2>
       <Field label="Titre interne">
         <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Découvrir SousPli" />
       </Field>

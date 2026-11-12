@@ -10,6 +10,42 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Touches de couleur, à petite dose sur la base noire. */
+  --color-accent-blue: #3291ff;
+  --color-accent-violet: #a970ff;
+  --color-accent-pink: #f75f8f;
+  --color-accent-teal: #45dec4;
+  --color-danger: #f33a4a;
+}
+
+/* Titre de page en dégradé bleu → violet → rose. */
+.title-gradient {
+  background: linear-gradient(90deg, #3291ff, #a970ff 55%, #f75f8f);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Titre de section : petite barre colorée à gauche. */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.section-title::before {
+  content: "";
+  width: 4px;
+  height: 1.1em;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #3291ff, #a970ff, #f75f8f);
+}
+
+/* Halo dégradé au survol du bouton principal. */
+.btn-glow:hover:not(:disabled) {
+  box-shadow:
+    0 0 0 1px rgba(169, 112, 255, 0.6),
+    0 0 18px rgba(50, 145, 255, 0.35),
+    0 0 28px rgba(247, 95, 143, 0.2);
 }
 
 body {
