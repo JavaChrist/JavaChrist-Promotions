@@ -2,16 +2,19 @@
 
 import { useState } from "react";
 import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
-import { Megaphone, LayoutGrid, LogOut } from "lucide-react";
+import { Film, Megaphone, LayoutGrid, LogOut } from "lucide-react";
 import { auth } from "@/lib/firebase-client";
-import type { AppDoc, CampaignDoc, Identified } from "@/lib/types";
+import type { AppDoc, CampaignDoc, ClipDoc, Identified } from "@/lib/types";
 import { publishCatalogs, useAdminAuth, useCollection, type PublishReport } from "@/lib/use-admin";
 import { AppsPanel } from "./AppsPanel";
 import { CampaignForm } from "./CampaignForm";
 import { CampaignsPanel } from "./CampaignsPanel";
+import { ClipsPanel } from "./ClipsPanel";
 import { btnPrimary, btnSecondary } from "./ui";
 
-type Tab = "campaigns" | "apps";
+type Tab = "campaigns" | "clips" | "apps";
+
+const TITLES: Record<Tab, string> = { campaigns: "Campagnes", clips: "Clips", apps: "Applications" };
 type View = { kind: "list" } | { kind: "form"; campaign?: Identified<CampaignDoc> };
 
 function Centered({ children }: { children: React.ReactNode }) {
@@ -23,6 +26,7 @@ export function AdminShell() {
   const ready = session.status === "admin";
   const apps = useCollection<AppDoc>("apps", ready);
   const campaigns = useCollection<CampaignDoc>("campaigns", ready);
+  const clips = useCollection<ClipDoc>("clips", ready);
   const [tab, setTab] = useState<Tab>("campaigns");
   const [view, setView] = useState<View>({ kind: "list" });
   const [report, setReport] = useState<PublishReport | null>(null);
@@ -67,6 +71,7 @@ export function AdminShell() {
 
   const tabs: { id: Tab; label: string; icon: typeof Megaphone }[] = [
     { id: "campaigns", label: "Campagnes", icon: Megaphone },
+    { id: "clips", label: "Clips", icon: Film },
     { id: "apps", label: "Applications", icon: LayoutGrid },
   ];
 
@@ -99,7 +104,7 @@ export function AdminShell() {
 
       <main className="space-y-6 p-4 md:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold">{tab === "campaigns" ? "Campagnes" : "Applications"}</h1>
+          <h1 className="text-xl font-semibold">{TITLES[tab]}</h1>
           <button type="button" className={btnSecondary} onClick={publish}>
             Republier les catalogues
           </button>
@@ -122,13 +127,16 @@ export function AdminShell() {
           </div>
         )}
 
-        {apps === null || campaigns === null ? (
+        {apps === null || campaigns === null || clips === null ? (
           <p className="text-sm text-[#a1a1a1]">Chargement des données…</p>
         ) : tab === "apps" ? (
           <AppsPanel apps={apps} onChanged={publish} />
+        ) : tab === "clips" ? (
+          <ClipsPanel clips={clips} apps={apps} campaigns={campaigns} />
         ) : view.kind === "form" ? (
           <CampaignForm
             apps={apps}
+            clips={clips}
             initial={view.campaign}
             onCancel={() => setView({ kind: "list" })}
             onSaved={() => {

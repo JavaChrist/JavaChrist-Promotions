@@ -19,6 +19,40 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
+interface ConfirmDialogProps {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+/** Confirmation en modale : jamais de `window.confirm` (conventions des apps). */
+export function ConfirmDialog({ title, message, confirmLabel, busy, onConfirm, onCancel }: ConfirmDialogProps) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      onKeyDown={(event) => event.key === "Escape" && onCancel()}
+    >
+      <div role="dialog" aria-modal="true" aria-labelledby="confirm-title" className="w-full max-w-sm space-y-4 rounded-lg border border-[#262626] bg-black p-5">
+        <h2 id="confirm-title" className="text-base font-medium">
+          {title}
+        </h2>
+        <p className="text-sm text-[#a1a1a1]">{message}</p>
+        <div className="flex justify-end gap-3">
+          <button type="button" className={btnSecondary} onClick={onCancel} autoFocus>
+            Annuler
+          </button>
+          <button type="button" className={btnPrimary} onClick={onConfirm} disabled={busy}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const STATUS_DOT: Record<CampaignStatus, string> = {
   draft: "bg-[#666]",
   active: "bg-[#45dec4]",

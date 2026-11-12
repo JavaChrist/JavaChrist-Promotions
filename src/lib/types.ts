@@ -1,9 +1,9 @@
-/** Application JavaChrist (promue et/ou jeu source). Collection `apps`. */
+/** Application JavaChrist (promue et/ou jeu diffuseur). Collection `apps`. */
 export interface AppDoc {
   name: string;
   androidPackage: string;
   playStoreUrl: string | null;
-  /** Ce jeu peut afficher des promotions. */
+  /** « Diffuse les promos » : ce jeu affiche les clips des autres applications. Nom de champ historique, conservé. */
   enabledAsSource: boolean;
 }
 
@@ -23,6 +23,23 @@ export interface CampaignDoc {
   videoStoragePath: string;
   videoDurationMs: number;
   destinationUrl: string;
+}
+
+/** Clip de la bibliothèque, déposé une fois et réutilisable dans plusieurs campagnes. Collection `clips`. */
+export interface ClipDoc {
+  name: string;
+  /** Application que présente le clip, pour filtrer le choix dans les campagnes. */
+  appId: string | null;
+  storagePath: string;
+  durationMs: number;
+  sizeBytes: number;
+}
+
+/** Dossier Storage de la bibliothèque. Un fichier ici n'appartient à aucune campagne : on ne l'efface jamais depuis une campagne. */
+export const LIBRARY_PREFIX = "library/";
+
+export function isLibraryPath(path: string): boolean {
+  return path.startsWith(LIBRARY_PREFIX);
 }
 
 export interface Identified<T> {

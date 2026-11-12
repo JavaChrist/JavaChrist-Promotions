@@ -4,9 +4,9 @@ import { useState } from "react";
 import { deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { deleteObject, ref } from "firebase/storage";
 import { db, mediaUrl, storage } from "@/lib/firebase-client";
-import type { AppDoc, CampaignDoc, CampaignStatus, Identified } from "@/lib/types";
+import { isLibraryPath, type AppDoc, type CampaignDoc, type CampaignStatus, type Identified } from "@/lib/types";
 import { PhonePreview } from "./PhonePreview";
-import { StatusPill, btnPrimary, btnSecondary } from "./ui";
+import { ConfirmDialog, StatusPill, btnPrimary, btnSecondary } from "./ui";
 
 interface CampaignsPanelProps {
   campaigns: Identified<CampaignDoc>[];
@@ -27,6 +27,7 @@ function formatPeriod(item: CampaignDoc): string {
 export function CampaignsPanel({ campaigns, apps, onNew, onEdit, onChanged }: CampaignsPanelProps) {
   const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [toDelete, setToDelete] = useState<Identified<CampaignDoc> | null>(null);
 
   const appName = (id: string) => apps.find((item) => item.id === id)?.data.name ?? id;
 
@@ -40,12 +41,17 @@ export function CampaignsPanel({ campaigns, apps, onNew, onEdit, onChanged }: Ca
     }
   }
 
-  async function remove(item: Identified<CampaignDoc>) {
-    if (!window.confirm(`Supprimer définitivement « ${item.data.title} » et sa vidéo ?`)) return;
+  async function confirmDelete() {
+    if (!toDelete) return;
+    const item = toDelete;
     setBusy(true);
     try {
       await deleteDoc(doc(db, "campaigns", item.id));
-      await deleteObject(ref(storage, item.data.videoStoragePath)).catch(() => undefined);
+      // Un clip de la bibliothèque reste disponible pour d'autres campagnes.
+      if (!isLibraryPath(item.data.videoStoragePath)) {
+        await deleteObject(ref(storage, item.data.videoStoragePath)).catch(() => undefined);
+      }
+      setToDelete(null);
       onChanged();
     } finally {
       setBusy(false);
@@ -110,7 +116,7 @@ export function CampaignsPanel({ campaigns, apps, onNew, onEdit, onChanged }: Ca
                     Archiver
                   </button>
                 )}
-                <button type="button" className={btnSecondary} disabled={busy} onClick={() => remove(item)}>
+                <button type="button" className={btnSecondary} disabled={busy} onClick={() => setToDelete(item)}>
                   Supprimer
                 </button>
               </span>
@@ -120,6 +126,20 @@ export function CampaignsPanel({ campaigns, apps, onNew, onEdit, onChanged }: Ca
       </div>
 
       {preview && <PhonePreview name={preview.name} videoUrl={preview.url} onClose={() => setPreview(null)} />}
+      {toDelete && (
+        <ConfirmDialog
+          title="Supprimer la campagne"
+          message={
+            isLibraryPath(toDelete.data.videoStoragePath)
+              ? `« ${toDelete.data.title} » sera supprimée définitivement. Son clip reste dans la bibliothèque.`
+              : `« ${toDelete.data.title} » et sa vidéo seront supprimées définitivement.`
+          }
+          confirmLabel="Supprimer"
+          busy={busy}
+          onConfirm={confirmDelete}
+          onCancel={() => setToDelete(null)}
+        />
+      )}
     </div>
   );
 }

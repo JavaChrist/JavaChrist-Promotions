@@ -4,7 +4,7 @@ import { useState } from "react";
 import { deleteDoc, doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase-client";
 import { isPlayStoreUrl, type AppDoc, type Identified } from "@/lib/types";
-import { Field, btnPrimary, btnSecondary, inputClass } from "./ui";
+import { ConfirmDialog, Field, btnPrimary, btnSecondary, inputClass } from "./ui";
 
 interface AppsPanelProps {
   apps: Identified<AppDoc>[];
@@ -21,6 +21,7 @@ export function AppsPanel({ apps, onChanged }: AppsPanelProps) {
   const [playStoreUrl, setPlayStoreUrl] = useState("");
   const [enabledAsSource, setEnabledAsSource] = useState(false);
   const [error, setError] = useState("");
+  const [toDelete, setToDelete] = useState<Identified<AppDoc> | null>(null);
 
   async function add(event: React.FormEvent) {
     event.preventDefault();
@@ -50,26 +51,27 @@ export function AppsPanel({ apps, onChanged }: AppsPanelProps) {
     onChanged();
   }
 
-  async function remove(item: Identified<AppDoc>) {
-    if (!window.confirm(`Supprimer l'application « ${item.data.name} » ?`)) return;
-    await deleteDoc(doc(db, "apps", item.id));
+  async function confirmDelete() {
+    if (!toDelete) return;
+    await deleteDoc(doc(db, "apps", toDelete.id));
+    setToDelete(null);
     onChanged();
   }
 
   return (
     <div className="space-y-8">
       <div className="rounded-lg border border-[#262626]">
-        <div className="hidden grid-cols-[1fr_1.2fr_100px_160px] gap-4 border-b border-[#262626] px-4 py-3 text-[13px] text-[#a1a1a1] md:grid">
+        <div className="hidden grid-cols-[1fr_1.2fr_140px_250px] gap-4 border-b border-[#262626] px-4 py-3 text-[13px] text-[#a1a1a1] md:grid">
           <span>Application</span>
           <span>Package Android</span>
-          <span>Source</span>
+          <span>Diffuse les promos</span>
           <span />
         </div>
         {apps.length === 0 && <p className="px-4 py-6 text-sm text-[#a1a1a1]">Aucune application pour le moment.</p>}
         {apps.map((item) => (
           <div
             key={item.id}
-            className="grid min-h-14 items-center gap-2 border-b border-[#262626] px-4 py-3 text-sm last:border-b-0 hover:bg-[#0a0a0a] md:grid-cols-[1fr_1.2fr_100px_160px] md:gap-4"
+            className="grid min-h-14 items-center gap-2 border-b border-[#262626] px-4 py-3 text-sm last:border-b-0 hover:bg-[#0a0a0a] md:grid-cols-[1fr_1.2fr_140px_250px] md:gap-4"
           >
             <span className="truncate">
               {item.data.name} <code className="ml-2 text-[13px] text-[#a1a1a1]">{item.id}</code>
@@ -78,9 +80,9 @@ export function AppsPanel({ apps, onChanged }: AppsPanelProps) {
             <span className="text-[#a1a1a1]">{item.data.enabledAsSource ? "Oui" : "Non"}</span>
             <span className="flex gap-2">
               <button type="button" className={btnSecondary} onClick={() => toggleSource(item)}>
-                {item.data.enabledAsSource ? "Retirer source" : "Source"}
+                {item.data.enabledAsSource ? "Arrêter la diffusion" : "Activer la diffusion"}
               </button>
-              <button type="button" className={btnSecondary} onClick={() => remove(item)}>
+              <button type="button" className={btnSecondary} onClick={() => setToDelete(item)}>
                 Supprimer
               </button>
             </span>
@@ -90,7 +92,7 @@ export function AppsPanel({ apps, onChanged }: AppsPanelProps) {
 
       <form onSubmit={add} className="max-w-xl space-y-4">
         <h2 className="text-base font-medium">Ajouter une application</h2>
-        <Field label="Identifiant" hint="Définitif. Pour un jeu source, il doit correspondre à celui codé dans le jeu (Motissimo : motissimo).">
+        <Field label="Identifiant" hint="Définitif. Pour un jeu diffuseur, il doit correspondre à celui codé dans le jeu (Motissimo : motissimo).">
           <input className={inputClass} value={id} onChange={(e) => setId(e.target.value)} placeholder="motissimo" />
         </Field>
         <Field label="Nom affiché">
@@ -114,13 +116,23 @@ export function AppsPanel({ apps, onChanged }: AppsPanelProps) {
         </Field>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={enabledAsSource} onChange={(e) => setEnabledAsSource(e.target.checked)} />
-          Ce jeu peut afficher des promotions
+          Ce jeu diffuse les promos (il affiche les clips des autres applications)
         </label>
         {error && <p className="text-sm text-[#f33a4a]">{error}</p>}
         <button type="submit" className={btnPrimary}>
           Ajouter
         </button>
       </form>
+
+      {toDelete && (
+        <ConfirmDialog
+          title="Supprimer l'application"
+          message={`« ${toDelete.data.name} » sera supprimée de la liste.`}
+          confirmLabel="Supprimer"
+          onConfirm={confirmDelete}
+          onCancel={() => setToDelete(null)}
+        />
+      )}
     </div>
   );
 }
