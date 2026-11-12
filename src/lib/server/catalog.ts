@@ -46,11 +46,18 @@ async function problemWith(campaign: CampaignDoc, apps: Map<string, AppDoc>): Pr
   }
   if (!isIsoDate(campaign.startsAt) || !isIsoDate(campaign.endsAt)) return "Date invalide";
 
-  const [metadata] = await adminBucket()
-    .file(campaign.videoStoragePath)
-    .getMetadata()
-    .catch(() => [null]);
-  if (!metadata) return "Fichier vidéo introuvable dans Storage";
+  const bucket = adminBucket();
+  let metadata;
+  try {
+    [metadata] = await bucket.file(campaign.videoStoragePath).getMetadata();
+  } catch (error) {
+    // Distingue un fichier absent d'un accès refusé ou d'un mauvais bucket, qui donnaient le même message.
+    const code = (error as { code?: number | string }).code;
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Lecture Storage impossible", bucket.name, campaign.videoStoragePath, error);
+    if (code === 404) return `Fichier vidéo introuvable dans Storage (bucket ${bucket.name}, chemin ${campaign.videoStoragePath})`;
+    return `Lecture de la vidéo impossible (bucket ${bucket.name}, code ${code ?? "?"}) : ${message}`;
+  }
   if (metadata.contentType !== "video/mp4") return "La vidéo n'est pas un MP4";
   if (Number(metadata.size) > MAX_VIDEO_BYTES) return "La vidéo dépasse 10 Mo";
   return null;
