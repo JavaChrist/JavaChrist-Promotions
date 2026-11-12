@@ -89,7 +89,8 @@ export function CampaignsPanel({ campaigns, apps, onNew, onEdit, onChanged }: Ca
               <span className="min-w-0">
                 <span className="block truncate font-medium text-accent-pink">{c.title}</span>
                 <span className="block truncate text-[13px] text-[#a1a1a1]">
-                  {appName(c.promotedAppId)} dans {c.sourceAppIds.map(appName).join(", ")}
+                  <span className="font-mono text-accent-teal">{c.locale.toUpperCase()}</span> · {appName(c.promotedAppId)} dans{" "}
+                  {c.sourceAppIds.map(appName).join(", ")}
                 </span>
               </span>
               <span className="text-[#a1a1a1]">{formatPeriod(c)}</span>

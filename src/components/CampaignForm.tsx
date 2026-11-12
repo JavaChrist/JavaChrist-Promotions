@@ -4,7 +4,7 @@ import { useState } from "react";
 import { deleteObject, ref } from "firebase/storage";
 import { doc, serverTimestamp, setDoc, collection } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase-client";
-import { isLibraryPath, isPlayStoreUrl, type AppDoc, type CampaignDoc, type ClipDoc, type Identified } from "@/lib/types";
+import { LOCALES, isLibraryPath, isPlayStoreUrl, type AppDoc, type CampaignDoc, type ClipDoc, type Identified } from "@/lib/types";
 import { Field, btnPrimary, btnSecondary, inputClass } from "./ui";
 
 interface CampaignFormProps {
@@ -28,6 +28,7 @@ export function CampaignForm({ apps, clips, initial, onSaved, onCancel }: Campai
   const [promotedAppId, setPromotedAppId] = useState(start?.promotedAppId ?? "");
   const [sourceAppIds, setSourceAppIds] = useState<string[]>(start?.sourceAppIds ?? []);
   const [destinationUrl, setDestinationUrl] = useState(start?.destinationUrl ?? "");
+  const [locale, setLocale] = useState(start?.locale ?? "fr");
   const [weight, setWeight] = useState(String(start?.weight ?? 1));
   const [startsAt, setStartsAt] = useState(toLocalInput(start?.startsAt ?? null));
   const [endsAt, setEndsAt] = useState(toLocalInput(start?.endsAt ?? null));
@@ -76,7 +77,7 @@ export function CampaignForm({ apps, clips, initial, onSaved, onCancel }: Campai
         sourceAppIds,
         status: start?.status ?? "draft",
         audience: "adult",
-        locale: "fr",
+        locale,
         startsAt: startsAt ? new Date(startsAt).toISOString() : null,
         endsAt: endsAt ? new Date(endsAt).toISOString() : null,
         weight: weightValue,
@@ -128,6 +129,16 @@ export function CampaignForm({ apps, clips, initial, onSaved, onCancel }: Campai
             </label>
           ))}
         </div>
+      </Field>
+      <Field label="Langue" hint="Un jeu ne montre que les campagnes de sa langue : GéoFR le français, GéoDE l'allemand… Le clip doit être dans cette langue.">
+        <select className={inputClass} value={locale} onChange={(e) => setLocale(e.target.value)}>
+          {Object.entries(LOCALES).map(([code, label]) => (
+            <option key={code} value={code}>
+              {label} ({code})
+            </option>
+          ))}
+          {!(locale in LOCALES) && <option value={locale}>{locale}</option>}
+        </select>
       </Field>
       <Field label="Lien Google Play">
         <input

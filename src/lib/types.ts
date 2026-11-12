@@ -58,6 +58,17 @@ export const STATUS_LABELS: Record<CampaignStatus, string> = {
   archived: "Archivée",
 };
 
+/** Langues des campagnes : un jeu (GéoFR, GéoDE…) ne garde que les campagnes de sa `locale`. */
+export const LOCALES: Record<string, string> = {
+  fr: "Français",
+  de: "Allemand",
+  es: "Espagnol",
+  it: "Italien",
+  en: "Anglais",
+  nl: "Néerlandais",
+  pt: "Portugais",
+};
+
 export function isPlayStoreUrl(value: string): boolean {
   try {
     const url = new URL(value);
