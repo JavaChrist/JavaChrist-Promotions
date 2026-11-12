@@ -21,7 +21,6 @@
   },
   "overrides": {
     "jose": "^5.10.0",
-    "node-domexception": "npm:@nolyfill/domexception@^1",
     "rimraf": "^6"
   },
   "devDependencies": {
