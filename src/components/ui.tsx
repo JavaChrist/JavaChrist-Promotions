@@ -15,7 +15,7 @@ export const inputClass =
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-sm font-medium">{label}</span>
+      <span className="text-sm font-medium text-[#c3a6ff]">{label}</span>
       {children}
       {hint && <span className="block text-[13px] text-[#a1a1a1]">{hint}</span>}
     </label>
