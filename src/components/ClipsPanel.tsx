@@ -28,12 +28,12 @@ export function ClipsPanel({ clips, apps, campaigns }: ClipsPanelProps) {
 
   const [listError, setListError] = useState("");
   const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
-  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; name: string; appId: string } | null>(null);
   const [toDelete, setToDelete] = useState<Identified<ClipDoc> | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const appName = (id: string | null) => (id ? (apps.find((item) => item.id === id)?.data.name ?? id) : "Toutes");
-  const usedBy = (clip: ClipDoc) => campaigns.filter((item) => item.data.videoStoragePath === clip.storagePath);
+  const appName = (id: string | null) => (id ? (apps.find((item) => item.id === id)?.data.name ?? id) : "Aucune application");
+  const usedBy = (clipId: string) => campaigns.filter((item) => (item.data.clipIds ?? []).includes(clipId));
   const sorted = [...clips].sort((a, b) => a.data.name.localeCompare(b.data.name, "fr"));
 
   async function pickFile(next: File | null) {
@@ -51,13 +51,14 @@ export function ClipsPanel({ clips, apps, campaigns }: ClipsPanelProps) {
     event.preventDefault();
     if (!file) return setError("Choisis un fichier MP4.");
     if (!name.trim()) return setError("Le nom est obligatoire.");
+    if (!appId) return setError("Choisis l'application que ce clip présente.");
 
     const id = doc(collection(db, "clips")).id;
     const storagePath = `${LIBRARY_PREFIX}${id}.mp4`;
     setProgress(0);
     try {
       await uploadVideo(storagePath, file, setProgress);
-      const data: ClipDoc = { name: name.trim(), appId: appId || null, storagePath, durationMs, sizeBytes: file.size };
+      const data: ClipDoc = { name: name.trim(), appId, storagePath, durationMs, sizeBytes: file.size };
       await setDoc(doc(db, "clips", id), { ...data, createdAt: serverTimestamp() });
       setName("");
       setAppId("");
@@ -74,17 +75,18 @@ export function ClipsPanel({ clips, apps, campaigns }: ClipsPanelProps) {
     }
   }
 
-  async function saveName() {
-    if (!renaming) return;
-    const next = renaming.name.trim();
+  async function saveEdit() {
+    if (!editing) return;
+    const next = editing.name.trim();
     if (!next) return setListError("Le nom ne peut pas être vide.");
-    await updateDoc(doc(db, "clips", renaming.id), { name: next });
-    setRenaming(null);
+    if (!editing.appId) return setListError("Choisis l'application que ce clip présente.");
+    await updateDoc(doc(db, "clips", editing.id), { name: next, appId: editing.appId });
+    setEditing(null);
     setListError("");
   }
 
   function askDelete(clip: Identified<ClipDoc>) {
-    const users = usedBy(clip.data);
+    const users = usedBy(clip.id);
     if (users.length > 0) {
       return setListError(
         `« ${clip.data.name} » est utilisé par : ${users.map((item) => item.data.title).join(", ")}. Choisis un autre clip dans ces campagnes avant de le supprimer.`
@@ -114,34 +116,44 @@ export function ClipsPanel({ clips, apps, campaigns }: ClipsPanelProps) {
 
       <div className="rounded-lg border border-[#262626]">
         <div className={`hidden gap-4 border-b border-[#262626] px-4 py-3 text-[13px] text-[#a1a1a1] md:grid ${GRID}`}>
-          <span>Clip</span>
+          <span>Clip · application présentée</span>
           <span>Durée</span>
           <span>Taille</span>
-          <span>Utilisé par</span>
+          <span>Dans les campagnes</span>
           <span />
         </div>
         {sorted.length === 0 && <p className="px-4 py-6 text-sm text-[#a1a1a1]">Aucun clip pour le moment.</p>}
         {sorted.map((item) => {
           const c = item.data;
-          const users = usedBy(c);
-          const isRenaming = renaming?.id === item.id;
+          const users = usedBy(item.id);
+          const isEditing = editing?.id === item.id;
           return (
             <div
               key={item.id}
               className={`grid min-h-14 items-center gap-2 border-b border-[#262626] px-4 py-3 text-sm last:border-b-0 hover:bg-[#0a0a0a] md:gap-4 ${GRID}`}
             >
               <span className="min-w-0">
-                {isRenaming ? (
-                  <input
-                    className={inputClass}
-                    value={renaming.name}
-                    autoFocus
-                    onChange={(e) => setRenaming({ id: item.id, name: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveName();
-                      if (e.key === "Escape") setRenaming(null);
-                    }}
-                  />
+                {isEditing ? (
+                  <span className="flex flex-col gap-2">
+                    <input
+                      className={inputClass}
+                      value={editing.name}
+                      autoFocus
+                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveEdit();
+                        if (e.key === "Escape") setEditing(null);
+                      }}
+                    />
+                    <select className={inputClass} value={editing.appId} onChange={(e) => setEditing({ ...editing, appId: e.target.value })}>
+                      <option value="">Choisir l&apos;application présentée</option>
+                      {apps.map((app) => (
+                        <option key={app.id} value={app.id}>
+                          {app.data.name}
+                        </option>
+                      ))}
+                    </select>
+                  </span>
                 ) : (
                   <>
                     <span className="block truncate font-medium text-accent-violet">{c.name}</span>
@@ -151,14 +163,14 @@ export function ClipsPanel({ clips, apps, campaigns }: ClipsPanelProps) {
               </span>
               <span className="text-[#a1a1a1]">{(c.durationMs / 1000).toFixed(1)} s</span>
               <span className="text-[#a1a1a1]">{formatSize(c.sizeBytes)}</span>
-              <span className="truncate text-[#a1a1a1]">{users.length ? users.map((u) => u.data.title).join(", ") : "Aucune campagne"}</span>
+              <span className="truncate text-[#a1a1a1]">{users.length ? users.map((u) => u.data.title).join(", ") : "Aucune"}</span>
               <span className="flex flex-wrap gap-2">
-                {isRenaming ? (
+                {isEditing ? (
                   <>
-                    <button type="button" className={btnSecondary} onClick={saveName}>
+                    <button type="button" className={btnSecondary} onClick={saveEdit}>
                       Enregistrer
                     </button>
-                    <button type="button" className={btnSecondary} onClick={() => setRenaming(null)}>
+                    <button type="button" className={btnSecondary} onClick={() => setEditing(null)}>
                       Annuler
                     </button>
                   </>
@@ -167,8 +179,8 @@ export function ClipsPanel({ clips, apps, campaigns }: ClipsPanelProps) {
                     <button type="button" className={btnSecondary} onClick={() => setPreview({ name: appName(c.appId), url: mediaUrl(c.storagePath) })}>
                       Aperçu
                     </button>
-                    <button type="button" className={btnSecondary} onClick={() => setRenaming({ id: item.id, name: c.name })}>
-                      Renommer
+                    <button type="button" className={btnSecondary} onClick={() => setEditing({ id: item.id, name: c.name, appId: c.appId ?? "" })}>
+                      Modifier
                     </button>
                     <button type="button" className={btnDanger} onClick={() => askDelete(item)}>
                       Supprimer
@@ -195,9 +207,9 @@ export function ClipsPanel({ clips, apps, campaigns }: ClipsPanelProps) {
         <Field label="Nom">
           <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="RideCloud, version courte" />
         </Field>
-        <Field label="Application présentée" hint="Facultatif. Sert à proposer ce clip dans les campagnes de cette application.">
+        <Field label="Application présentée" hint="L'application que ce clip fait découvrir. Son lien Google Play s'ouvre quand le joueur touche le clip.">
           <select className={inputClass} value={appId} onChange={(e) => setAppId(e.target.value)}>
-            <option value="">Toutes</option>
+            <option value="">Choisir</option>
             {apps.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.data.name}

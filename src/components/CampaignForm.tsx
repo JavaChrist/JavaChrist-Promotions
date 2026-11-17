@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { deleteObject, ref } from "firebase/storage";
 import { doc, serverTimestamp, setDoc, collection } from "firebase/firestore";
-import { db, storage } from "@/lib/firebase-client";
-import { LOCALES, isLibraryPath, isPlayStoreUrl, type AppDoc, type CampaignDoc, type ClipDoc, type Identified } from "@/lib/types";
+import { db } from "@/lib/firebase-client";
+import { LOCALES, type AppDoc, type CampaignDoc, type ClipDoc, type Identified } from "@/lib/types";
 import { Field, btnPrimary, btnSecondary, inputClass } from "./ui";
 
 interface CampaignFormProps {
@@ -25,47 +24,34 @@ function toLocalInput(iso: string | null): string {
 export function CampaignForm({ apps, clips, initial, onSaved, onCancel }: CampaignFormProps) {
   const start = initial?.data;
   const [title, setTitle] = useState(start?.title ?? "");
-  const [promotedAppId, setPromotedAppId] = useState(start?.promotedAppId ?? "");
-  const [sourceAppIds, setSourceAppIds] = useState<string[]>(start?.sourceAppIds ?? []);
-  const [destinationUrl, setDestinationUrl] = useState(start?.destinationUrl ?? "");
+  const [hostAppId, setHostAppId] = useState(start?.hostAppId ?? "");
+  const [clipIds, setClipIds] = useState<string[]>(start?.clipIds ?? []);
   const [locale, setLocale] = useState(start?.locale ?? "fr");
   const [weight, setWeight] = useState(String(start?.weight ?? 1));
   const [startsAt, setStartsAt] = useState(toLocalInput(start?.startsAt ?? null));
   const [endsAt, setEndsAt] = useState(toLocalInput(start?.endsAt ?? null));
-  const [videoStoragePath, setVideoStoragePath] = useState(start?.videoStoragePath ?? "");
-  const [durationMs, setDurationMs] = useState(start?.videoDurationMs ?? 0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const broadcasters = apps.filter((item) => item.data.enabledAsSource);
-  // Clips proposés : ceux de l'application promue, ceux sans application, et le clip déjà choisi.
+  const appName = (id: string) => apps.find((item) => item.id === id)?.data.name ?? "Sans application";
+  // Une application ne se promeut jamais elle-même : ses propres clips ne sont pas proposés.
   const choices = clips
-    .filter((item) => item.data.appId === null || item.data.appId === promotedAppId || item.data.storagePath === videoStoragePath)
-    .sort((a, b) => a.data.name.localeCompare(b.data.name, "fr"));
-  // Ancienne vidéo déposée directement dans la campagne, avant la bibliothèque.
-  const legacyPath = start?.videoStoragePath && !isLibraryPath(start.videoStoragePath) ? start.videoStoragePath : "";
+    .filter((item) => item.data.appId !== hostAppId)
+    .sort((a, b) => appName(a.data.appId).localeCompare(appName(b.data.appId), "fr") || a.data.name.localeCompare(b.data.name, "fr"));
 
-  function choosePromoted(id: string) {
-    setPromotedAppId(id);
-    const url = apps.find((item) => item.id === id)?.data.playStoreUrl;
-    if (url && !destinationUrl) setDestinationUrl(url);
-  }
-
-  function chooseVideo(path: string) {
-    setVideoStoragePath(path);
-    if (path === legacyPath) return setDurationMs(start?.videoDurationMs ?? 0);
-    setDurationMs(clips.find((item) => item.data.storagePath === path)?.data.durationMs ?? 0);
+  function chooseHost(id: string) {
+    setHostAppId(id);
+    const ownClips = new Set(clips.filter((item) => item.data.appId === id).map((item) => item.id));
+    setClipIds((current) => current.filter((clipId) => !ownClips.has(clipId)));
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     const weightValue = Number(weight);
     if (!title.trim()) return setError("Le titre interne est obligatoire.");
-    if (!promotedAppId) return setError("Choisis l'application promue.");
-    if (sourceAppIds.length === 0) return setError("Choisis au moins un jeu où diffuser la promotion.");
-    if (!isPlayStoreUrl(destinationUrl)) return setError("Le lien doit être une fiche play.google.com (https).");
+    if (!hostAppId) return setError("Choisis l'application où les clips s'afficheront.");
+    if (clipIds.length === 0) return setError("Choisis au moins un clip à afficher.");
     if (!Number.isInteger(weightValue) || weightValue < 1 || weightValue > 10) return setError("Le poids est un entier de 1 à 10.");
-    if (!videoStoragePath) return setError("Choisis un clip dans la bibliothèque.");
     if (startsAt && endsAt && new Date(endsAt) <= new Date(startsAt)) return setError("La fin doit suivre le début.");
 
     setSaving(true);
@@ -73,23 +59,16 @@ export function CampaignForm({ apps, clips, initial, onSaved, onCancel }: Campai
       const id = initial?.id ?? doc(collection(db, "campaigns")).id;
       const data: CampaignDoc = {
         title: title.trim(),
-        promotedAppId,
-        sourceAppIds,
+        hostAppId,
+        clipIds,
         status: start?.status ?? "draft",
         audience: "adult",
         locale,
         startsAt: startsAt ? new Date(startsAt).toISOString() : null,
         endsAt: endsAt ? new Date(endsAt).toISOString() : null,
         weight: weightValue,
-        videoStoragePath,
-        videoDurationMs: durationMs,
-        destinationUrl: destinationUrl.trim(),
       };
       await setDoc(doc(db, "campaigns", id), { ...data, updatedAt: serverTimestamp() });
-      // Une ancienne vidéo propre à la campagne est supprimée une fois remplacée ; un clip de la bibliothèque jamais.
-      if (legacyPath && legacyPath !== videoStoragePath) {
-        await deleteObject(ref(storage, legacyPath)).catch(() => undefined);
-      }
       onSaved();
     } catch {
       setSaving(false);
@@ -100,11 +79,11 @@ export function CampaignForm({ apps, clips, initial, onSaved, onCancel }: Campai
   return (
     <form onSubmit={submit} className="max-w-xl space-y-4">
       <h2 className="section-title text-base font-medium">{initial ? "Modifier la campagne" : "Nouvelle campagne"}</h2>
-      <Field label="Titre interne">
-        <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Découvrir SousPli" />
+      <Field label="Titre interne" hint="Pour te repérer dans la liste. Les joueurs ne le voient jamais.">
+        <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Clips dans RideCloud" />
       </Field>
-      <Field label="Application promue">
-        <select className={inputClass} value={promotedAppId} onChange={(e) => choosePromoted(e.target.value)}>
+      <Field label="Application où les clips s'affichent" hint="C'est dans cette application que les joueurs verront les clips.">
+        <select className={inputClass} value={hostAppId} onChange={(e) => chooseHost(e.target.value)}>
           <option value="">Choisir</option>
           {apps.map((item) => (
             <option key={item.id} value={item.id}>
@@ -113,24 +92,39 @@ export function CampaignForm({ apps, clips, initial, onSaved, onCancel }: Campai
           ))}
         </select>
       </Field>
-      <Field label="Jeux où la promotion s'affiche" hint="Un jeu ne se promeut jamais lui-même.">
+      <Field
+        label="Clips à afficher"
+        hint={
+          !hostAppId
+            ? "Choisis d'abord l'application où les clips s'affichent."
+            : "Un clip présente une autre application et ouvre sa fiche Google Play. Les clips de l'application choisie ne sont pas proposés."
+        }
+      >
         <div className="space-y-2 pt-1">
-          {broadcasters.length === 0 && <p className="text-sm text-[#a1a1a1]">Aucun jeu diffuseur : active la diffusion dans Applications.</p>}
-          {broadcasters.map((item) => (
-            <label key={item.id} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={sourceAppIds.includes(item.id)}
-                onChange={(e) =>
-                  setSourceAppIds(e.target.checked ? [...sourceAppIds, item.id] : sourceAppIds.filter((x) => x !== item.id))
-                }
-              />
-              {item.data.name}
-            </label>
-          ))}
+          {hostAppId && choices.length === 0 && <p className="text-sm text-[#a1a1a1]">Aucun clip disponible : dépose d&apos;abord des clips dans l&apos;onglet Clips.</p>}
+          {hostAppId &&
+            choices.map((item) => {
+              const link = apps.find((app) => app.id === item.data.appId)?.data.playStoreUrl;
+              return (
+                <label key={item.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={clipIds.includes(item.id)}
+                    onChange={(e) => setClipIds(e.target.checked ? [...clipIds, item.id] : clipIds.filter((x) => x !== item.id))}
+                  />
+                  <span>
+                    <span className="text-accent-violet">{item.data.name}</span>{" "}
+                    <span className="text-[#a1a1a1]">
+                      · présente {appName(item.data.appId)} · {(item.data.durationMs / 1000).toFixed(1)} s
+                    </span>
+                    {!link && <span className="text-[#f5a623]"> · lien Google Play manquant</span>}
+                  </span>
+                </label>
+              );
+            })}
         </div>
       </Field>
-      <Field label="Langue" hint="Un jeu ne montre que les campagnes de sa langue : GéoFR le français, GéoDE l'allemand… Le clip doit être dans cette langue.">
+      <Field label="Langue" hint="Un jeu ne montre que les campagnes de sa langue : GéoFR le français, GéoDE l'allemand… Les clips doivent être dans cette langue.">
         <select className={inputClass} value={locale} onChange={(e) => setLocale(e.target.value)}>
           {Object.entries(LOCALES).map(([code, label]) => (
             <option key={code} value={code}>
@@ -138,34 +132,6 @@ export function CampaignForm({ apps, clips, initial, onSaved, onCancel }: Campai
             </option>
           ))}
           {!(locale in LOCALES) && <option value={locale}>{locale}</option>}
-        </select>
-      </Field>
-      <Field label="Lien Google Play">
-        <input
-          className={inputClass}
-          value={destinationUrl}
-          onChange={(e) => setDestinationUrl(e.target.value)}
-          placeholder="https://play.google.com/store/apps/details?id=…"
-        />
-      </Field>
-      <Field
-        label="Clip vidéo"
-        hint={
-          clips.length === 0
-            ? "La bibliothèque est vide : dépose d'abord un clip dans l'onglet Clips."
-            : durationMs
-              ? `Durée : ${(durationMs / 1000).toFixed(1)} s`
-              : "Clips de l'application promue et clips sans application."
-        }
-      >
-        <select className={inputClass} value={videoStoragePath} onChange={(e) => chooseVideo(e.target.value)}>
-          <option value="">Choisir dans la bibliothèque</option>
-          {legacyPath && <option value={legacyPath}>Vidéo actuelle de la campagne</option>}
-          {choices.map((item) => (
-            <option key={item.id} value={item.data.storagePath}>
-              {item.data.name} ({(item.data.durationMs / 1000).toFixed(1)} s)
-            </option>
-          ))}
         </select>
       </Field>
       <div className="grid grid-cols-2 gap-4">

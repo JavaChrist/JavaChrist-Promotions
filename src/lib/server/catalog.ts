@@ -5,16 +5,18 @@ import {
   isPlayStoreUrl,
   type AppDoc,
   type CampaignDoc,
+  type ClipDoc,
 } from "@/lib/types";
 import { adminBucket, adminDb } from "./admin";
 
 export interface PublishReport {
-  /** Nombre de campagnes publiées par jeu source. */
+  /** Nombre de clips publiés par application où ils s'affichent. */
   published: Record<string, number>;
-  /** Campagnes actives qui n'ont pas pu être publiées, avec la raison. */
+  /** Campagnes ou clips actifs qui n'ont pas pu être publiés, avec la raison. */
   skipped: { campaignId: string; title: string; reason: string }[];
 }
 
+/** Une entrée du catalogue lu par un jeu : un clip, avec l'application qu'il présente. Format inchangé. */
 interface CatalogCampaign {
   id: string;
   name: string;
@@ -36,73 +38,98 @@ function isIsoDate(value: string | null): boolean {
   return value === null || !Number.isNaN(Date.parse(value));
 }
 
-/** Vérifie une campagne active ; renvoie la raison du refus, ou null si elle peut être publiée. */
-async function problemWith(campaign: CampaignDoc, apps: Map<string, AppDoc>): Promise<string | null> {
-  if (!apps.has(campaign.promotedAppId)) return "Application promue introuvable";
-  if (campaign.sourceAppIds.length === 0) return "Aucun jeu source choisi";
-  if (!isPlayStoreUrl(campaign.destinationUrl)) return "Le lien doit être une fiche play.google.com";
-  if (!(campaign.videoDurationMs > 0 && campaign.videoDurationMs <= MAX_DURATION_MS)) {
+/** Vérifie le fichier d'un clip dans Storage ; renvoie la raison du refus, ou null s'il est publiable. */
+async function fileProblem(clip: ClipDoc): Promise<string | null> {
+  if (!(clip.durationMs > 0 && clip.durationMs <= MAX_DURATION_MS)) {
     return `Durée de la vidéo hors limite (${MAX_DURATION_MS / 1000} s maximum)`;
   }
-  if (!isIsoDate(campaign.startsAt) || !isIsoDate(campaign.endsAt)) return "Date invalide";
-
-  const bucket = adminBucket();
-  let metadata;
-  try {
-    [metadata] = await bucket.file(campaign.videoStoragePath).getMetadata();
-  } catch (error) {
-    // Distingue un fichier absent d'un accès refusé ou d'un mauvais bucket, qui donnaient le même message.
-    const code = (error as { code?: number | string }).code;
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("Lecture Storage impossible", bucket.name, campaign.videoStoragePath, error);
-    if (code === 404) return `Fichier vidéo introuvable dans Storage (bucket ${bucket.name}, chemin ${campaign.videoStoragePath})`;
-    return `Lecture de la vidéo impossible (bucket ${bucket.name}, code ${code ?? "?"}) : ${message}`;
-  }
+  const [metadata] = await adminBucket()
+    .file(clip.storagePath)
+    .getMetadata()
+    .catch(() => [null]);
+  if (!metadata) return "Fichier vidéo introuvable dans Storage";
   if (metadata.contentType !== "video/mp4") return "La vidéo n'est pas un MP4";
   if (Number(metadata.size) > MAX_VIDEO_BYTES) return "La vidéo dépasse 10 Mo";
   return null;
 }
 
 /**
- * Régénère `public_catalogs/{jeu}` à partir des apps et campagnes. Seul point d'écriture de ces
- * documents : les jeux ne lisent que cette projection, jamais les brouillons.
+ * Régénère `public_catalogs/{application}` à partir des apps, des clips et des campagnes. Seul point
+ * d'écriture de ces documents : les jeux ne lisent que cette projection, jamais les brouillons.
  */
 export async function publishCatalogs(): Promise<PublishReport> {
   const db = adminDb();
-  const [appsSnap, campaignsSnap, catalogsSnap] = await Promise.all([
+  const [appsSnap, clipsSnap, campaignsSnap, catalogsSnap] = await Promise.all([
     db.collection("apps").get(),
+    db.collection("clips").get(),
     db.collection("campaigns").get(),
     db.collection("public_catalogs").get(),
   ]);
 
   const apps = new Map(appsSnap.docs.map((item) => [item.id, item.data() as AppDoc]));
-  const sources = [...apps].filter(([, app]) => app.enabledAsSource).map(([id]) => id);
-  const catalogs = new Map<string, CatalogCampaign[]>(sources.map((id) => [id, []]));
+  const clips = new Map(clipsSnap.docs.map((item) => [item.id, item.data() as ClipDoc]));
+  // Toute application a son catalogue, vide tant qu'aucune campagne n'y affiche de clip.
+  const catalogs = new Map<string, CatalogCampaign[]>([...apps.keys()].map((id) => [id, []]));
   const report: PublishReport = { published: {}, skipped: [] };
   const bucketName = adminBucket().name;
+  const files = new Map<string, Promise<string | null>>();
 
   for (const item of campaignsSnap.docs) {
     const campaign = item.data() as CampaignDoc;
     if (campaign.status !== "active") continue;
 
-    const problem = await problemWith(campaign, apps);
-    if (problem) {
-      report.skipped.push({ campaignId: item.id, title: campaign.title, reason: problem });
+    const skip = (reason: string, clipName?: string) =>
+      report.skipped.push({ campaignId: item.id, title: clipName ? `${campaign.title} › ${clipName}` : campaign.title, reason });
+
+    if (!campaign.hostAppId || !Array.isArray(campaign.clipIds)) {
+      skip("Ancien format : ouvre la campagne et enregistre-la à nouveau");
+      continue;
+    }
+    if (!catalogs.has(campaign.hostAppId)) {
+      skip("Application où les clips s'affichent introuvable");
+      continue;
+    }
+    if (campaign.clipIds.length === 0) {
+      skip("Aucun clip choisi");
+      continue;
+    }
+    if (!isIsoDate(campaign.startsAt) || !isIsoDate(campaign.endsAt)) {
+      skip("Date invalide");
       continue;
     }
 
-    const promoted = apps.get(campaign.promotedAppId)!;
-    for (const source of campaign.sourceAppIds) {
-      // Un jeu ne se promeut jamais lui-même ; un jeu non activé comme source ne reçoit rien.
-      if (source === campaign.promotedAppId || !catalogs.has(source)) continue;
-      catalogs.get(source)!.push({
-        id: item.id,
+    for (const clipId of campaign.clipIds) {
+      const clip = clips.get(clipId);
+      if (!clip) {
+        skip("Clip introuvable");
+        continue;
+      }
+      const promoted = clip.appId ? apps.get(clip.appId) : undefined;
+      if (!promoted) {
+        skip("Le clip n'est lié à aucune application existante", clip.name);
+        continue;
+      }
+      // Une application ne se promeut jamais elle-même.
+      if (clip.appId === campaign.hostAppId) continue;
+      if (!promoted.playStoreUrl || !isPlayStoreUrl(promoted.playStoreUrl)) {
+        skip(`La fiche Google Play de ${promoted.name} est manquante ou invalide`, clip.name);
+        continue;
+      }
+      if (!files.has(clip.storagePath)) files.set(clip.storagePath, fileProblem(clip));
+      const problem = await files.get(clip.storagePath)!;
+      if (problem) {
+        skip(problem, clip.name);
+        continue;
+      }
+
+      catalogs.get(campaign.hostAppId)!.push({
+        id: `${item.id}_${clipId}`,
         name: promoted.name,
         audience: "adult",
         locale: campaign.locale,
-        videoUrl: mediaUrl(bucketName, campaign.videoStoragePath),
-        durationMs: campaign.videoDurationMs,
-        destinationUrl: campaign.destinationUrl,
+        videoUrl: mediaUrl(bucketName, clip.storagePath),
+        durationMs: clip.durationMs,
+        destinationUrl: promoted.playStoreUrl,
         weight: Math.max(1, Math.round(campaign.weight) || 1),
         startsAt: campaign.startsAt,
         endsAt: campaign.endsAt,
@@ -110,17 +137,17 @@ export async function publishCatalogs(): Promise<PublishReport> {
     }
   }
 
-  // Les catalogues de jeux qui ne sont plus sources sont vidés, pas laissés périmés.
+  // Les catalogues d'applications supprimées sont vidés, pas laissés périmés.
   const stale = catalogsSnap.docs.map((item) => item.id).filter((id) => !catalogs.has(id));
   const batch = db.batch();
-  for (const [source, campaigns] of catalogs) {
-    report.published[source] = campaigns.length;
-    batch.set(db.collection("public_catalogs").doc(source), {
+  for (const [host, entries] of catalogs) {
+    report.published[host] = entries.length;
+    batch.set(db.collection("public_catalogs").doc(host), {
       schemaVersion: 1,
-      sourceAppId: source,
+      sourceAppId: host,
       catalogVersion: Date.now(),
       generatedAt: FieldValue.serverTimestamp(),
-      campaigns,
+      campaigns: entries,
     });
   }
   for (const id of stale) {

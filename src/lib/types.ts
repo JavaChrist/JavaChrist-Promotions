@@ -1,46 +1,43 @@
-/** Application JavaChrist (promue et/ou jeu diffuseur). Collection `apps`. */
+/** Application JavaChrist. Collection `apps`. Toute application peut présenter des clips (via son lien Google Play) et en recevoir (dans ses campagnes). */
 export interface AppDoc {
   name: string;
   androidPackage: string;
+  /** Fiche Google Play : c'est le lien ouvert quand on touche un clip qui présente cette application. */
   playStoreUrl: string | null;
-  /** « Diffuse les promos » : ce jeu affiche les clips des autres applications. Nom de champ historique, conservé. */
-  enabledAsSource: boolean;
 }
 
 export type CampaignStatus = "draft" | "active" | "inactive" | "archived";
 
-/** Campagne, brouillons compris. Collection `campaigns`, jamais lue par les jeux. */
+/**
+ * Campagne : « dans cette application, afficher ces clips ». Brouillons compris. Collection `campaigns`, jamais lue par les jeux.
+ * L'application présentée et le lien Google Play viennent de chaque clip, pas de la campagne.
+ */
 export interface CampaignDoc {
   title: string;
-  promotedAppId: string;
-  sourceAppIds: string[];
+  /** Application où les clips s'affichent. */
+  hostAppId: string;
+  /** Clips affichés dans cette application (collection `clips`). */
+  clipIds: string[];
   status: CampaignStatus;
   audience: "adult";
   locale: string;
   startsAt: string | null;
   endsAt: string | null;
   weight: number;
-  videoStoragePath: string;
-  videoDurationMs: number;
-  destinationUrl: string;
 }
 
 /** Clip de la bibliothèque, déposé une fois et réutilisable dans plusieurs campagnes. Collection `clips`. */
 export interface ClipDoc {
   name: string;
-  /** Application que présente le clip, pour filtrer le choix dans les campagnes. */
-  appId: string | null;
+  /** Application que présente le clip (obligatoire) : son lien Google Play est la destination du clip. */
+  appId: string;
   storagePath: string;
   durationMs: number;
   sizeBytes: number;
 }
 
-/** Dossier Storage de la bibliothèque. Un fichier ici n'appartient à aucune campagne : on ne l'efface jamais depuis une campagne. */
+/** Dossier Storage des clips déposés depuis l'onglet Clips. */
 export const LIBRARY_PREFIX = "library/";
-
-export function isLibraryPath(path: string): boolean {
-  return path.startsWith(LIBRARY_PREFIX);
-}
 
 export interface Identified<T> {
   id: string;

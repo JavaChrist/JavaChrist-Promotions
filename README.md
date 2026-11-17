@@ -5,11 +5,11 @@ Back-office privé pour gérer les vidéos de promotion affichées dans les jeux
 ## Fonctionnement
 
 1. L'admin se connecte avec Google (compte portant le claim `admin: true`).
-2. Il gère `apps` et `campaigns` dans Firestore, et envoie les MP4 dans Storage (`campaigns/{id}/`).
-3. Après chaque modification, `POST /api/publish` (Admin SDK) régénère `public_catalogs/{jeuSource}`, seul document lu par les jeux.
+2. Il gère `apps`, `clips` et `campaigns` dans Firestore, et envoie les MP4 dans Storage (`library/`). Une campagne = une application hôte (où les clips s'affichent) + les clips à y afficher ; un clip présente une autre application (une app ne se promeut jamais elle-même).
+3. Après chaque modification, `POST /api/publish` (Admin SDK) régénère `public_catalogs/{applicationHôte}` (une entrée par clip), seul document lu par les jeux.
 4. Les jeux lisent leur catalogue (cache 15 min), uniquement pour un public adulte.
 
-Le serveur ne publie que les campagnes valides : active, dates correctes, lien `play.google.com`, vidéo MP4 existante ≤ 10 Mo et ≤ 15 s. Les campagnes ignorées sont listées avec leur raison.
+Le serveur ne publie que les campagnes valides : active, dates correctes, lien `play.google.com` sur l'application présentée par le clip, vidéo MP4 existante ≤ 10 Mo et ≤ 15 s. Les campagnes ignorées sont listées avec leur raison.
 
 ## Variables d'environnement
 
@@ -29,14 +29,15 @@ Voir `.env.example`.
    node scripts/set-admin.mjs contact@javachrist.fr
    ```
 5. Se déconnecter puis se reconnecter.
-6. Onglet Applications : ajouter `motissimo` (nom Motissimo, package `fr.javachrist.motissimo`, « peut afficher des promotions » coché).
+6. Onglet Applications : ajouter `motissimo` (nom Motissimo, package `fr.javachrist.motissimo`).
 
 ## Usage
 
-- **Ajouter une app** : onglet Applications. L'identifiant est définitif. Renseigner la fiche Google Play quand elle existe.
-- **Créer une promo** : onglet Campagnes > Nouvelle campagne. Elle naît en brouillon. Utiliser Aperçu, puis Activer.
-- **Remplacer une vidéo** : Modifier, choisir un nouveau MP4. L'ancien est supprimé après enregistrement.
-- **Arrêter une campagne** : Désactiver (réversible) ou Archiver. Supprimer efface aussi la vidéo.
+- **Ajouter une app** : onglet Applications. L'identifiant est définitif (pour une app qui affiche des clips, il doit être celui codé dans le jeu). La fiche Google Play est nécessaire pour que les clips qui présentent l'app soient publiés.
+- **Déposer un clip** : onglet Clips, avec l'application qu'il présente (obligatoire).
+- **Créer une campagne** : onglet Campagnes > Nouvelle campagne : choisir l'application où les clips s'affichent, cocher les clips, langue, dates, poids. Elle naît en brouillon : Aperçu, puis Activer.
+- **Arrêter une campagne** : Désactiver (réversible) ou Archiver. Supprimer ne supprime pas les clips.
+- **Migration depuis l'ancien modèle** : `node scripts/migrate-campaigns.mjs` (simulation) puis `--apply`.
 - **Vidéo** : MP4 H.264/AAC, 15 s max (10–12 s conseillé), 10 Mo max.
 
 ## Coûts
@@ -45,5 +46,5 @@ Firestore, Storage et Vercel restent dans les paliers gratuits pour quelques vid
 
 ## Limites connues
 
-- Les vidéos de `campaigns/` sont lisibles par quiconque connaît l'URL (nécessaire au jeu).
+- Les vidéos de `library/` sont lisibles par quiconque connaît l'URL (nécessaire au jeu).
 - Les règles Firestore/Storage sont versionnées dans le dépôt Motissimo (`firestore.rules`, `storage.rules`).

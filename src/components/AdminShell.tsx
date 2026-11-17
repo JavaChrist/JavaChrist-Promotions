@@ -115,9 +115,9 @@ export function AdminShell() {
         {report && (
           <div className="rounded-lg border border-[#262626] p-3 text-sm">
             <p>
-              Catalogues publiés :{" "}
+              Clips publiés par application :{" "}
               {Object.entries(report.published)
-                .map(([source, count]) => `${source} (${count} campagne${count > 1 ? "s" : ""})`)
+                .map(([host, count]) => `${host} (${count} clip${count > 1 ? "s" : ""})`)
                 .join(", ") || "aucun"}
             </p>
             {report.skipped.map((item) => (
@@ -131,7 +131,7 @@ export function AdminShell() {
         {apps === null || campaigns === null || clips === null ? (
           <p className="text-sm text-[#a1a1a1]">Chargement des données…</p>
         ) : tab === "apps" ? (
-          <AppsPanel apps={apps} onChanged={publish} />
+          <AppsPanel apps={apps} clips={clips} campaigns={campaigns} onChanged={publish} />
         ) : tab === "clips" ? (
           <ClipsPanel clips={clips} apps={apps} campaigns={campaigns} />
         ) : view.kind === "form" ? (
@@ -149,6 +149,7 @@ export function AdminShell() {
           <CampaignsPanel
             campaigns={campaigns}
             apps={apps}
+            clips={clips}
             onNew={() => setView({ kind: "form" })}
             onEdit={(campaign) => setView({ kind: "form", campaign })}
             onChanged={publish}
